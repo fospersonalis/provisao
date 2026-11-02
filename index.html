@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#153b30">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Provisão">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Controle de validade e estoque doméstico — offline e privado.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-64.png" sizes="64x64" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Provisão — Controle de Despensa</title>
+<style>
+/* ============================================================
+   PROVISÃO — Sistema de design
+   Paleta "despensa / conserva": pinho profundo + mel + papel
+   Tipografia: sans do sistema para texto, MONO para dados
+   (números, datas e códigos parecem etiquetas de despensa)
+   ============================================================ */
+:root{
+  --pinho:#153b30;        /* verde pinho profundo (primária) */
+  --pinho-2:#1f5142;
+  --pinho-3:#2f6c58;
+  --mel:#d99630;          /* mel / âmbar (acento) */
+  --mel-soft:#f2c877;
+  --tijolo:#c1443c;       /* vencido / crítico */
+  --tijolo-soft:#e88a84;
+  --oliva:#8a9a3f;
+  --papel:#f4f2ea;        /* fundo (papel de despensa) */
+  --papel-2:#ece8dc;
+  --carta:#ffffff;        /* cartões */
+  --tinta:#26241f;        /* texto principal */
+  --tinta-2:#5c574d;      /* texto secundário */
+  --linha:#ddd7c7;        /* divisórias */
+  --linha-2:#e8e3d5;
+  --ok:#3d8168;
+  --ok-bg:#e6f0ea;
+  --alerta:#b57614;
+  --alerta-bg:#fbf0da;
+  --perigo:#a5352d;
+  --perigo-bg:#f7e4e2;
+  --sombra:0 1px 2px rgba(38,36,31,.06), 0 6px 20px rgba(38,36,31,.06);
+  --sombra-forte:0 8px 40px rgba(21,59,48,.18);
+  --raio:14px;
+  --raio-sm:9px;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+[data-tema="escuro"]{
+  --pinho:#3d9c7f; --pinho-2:#347a63; --pinho-3:#2b6351;
+  --mel:#e8ab4c; --mel-soft:#7a5a24;
+  --tijolo:#e06a62; --tijolo-soft:#5a2a27;
+  --papel:#15181a; --papel-2:#1c2124; --carta:#22282b;
+  --tinta:#eef0ec; --tinta-2:#a6ada6;
+  --linha:#333b3d; --linha-2:#2a3134;
+  --ok:#5cb894; --ok-bg:#1c2e28;
+  --alerta:#e0a94a; --alerta-bg:#2e2617;
+  --perigo:#e8746b; --perigo-bg:#2f1e1c;
+  --sombra:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
+  --sombra-forte:0 8px 40px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans);
+  background:var(--papel);
+  color:var(--tinta);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  min-height:100dvh;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px}
+::selection{background:var(--mel-soft);color:var(--tinta)}
+
+/* ---------- Layout base ---------- */
+.app{display:flex;min-height:100vh;min-height:100dvh}
+
+/* Sidebar (desktop) */
+.side{
+  width:236px;flex-shrink:0;background:var(--pinho);color:#eef3f0;
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;height:100dvh;
+  padding:22px 14px;
+}
+.brand{display:flex;align-items:center;gap:11px;padding:6px 8px 20px}
+.brand .logo{
+  width:38px;height:38px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--mel),#c47f1e);
+  display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);
+}
+.brand h1{font-size:19px;font-weight:800;letter-spacing:.06em;line-height:1}
+.brand span{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#a9c6bb;font-family:var(--mono)}
+.nav{display:flex;flex-direction:column;gap:2px;flex:1}
+.nav button{
+  display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;
+  color:#c8dcd4;font-size:14.5px;font-weight:600;text-align:left;transition:.15s;position:relative;
+}
+.nav button svg{width:19px;height:19px;flex-shrink:0;opacity:.85}
+.nav button:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav button.on{background:var(--pinho-3);color:#fff}
+.nav button.on svg{opacity:1}
+.nav .badge{margin-left:auto;background:var(--tijolo);color:#fff;font-size:10.5px;font-weight:800;
+  min-width:20px;height:20px;border-radius:20px;display:grid;place-items:center;padding:0 5px;font-family:var(--mono)}
+.side-foot{display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)}
+.side-foot button{
+  display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;
+  color:#b7cfc6;font-size:12.5px;font-weight:600;transition:.15s;
+}
+.side-foot button:hover{background:rgba(255,255,255,.07);color:#fff}
+.side-foot button svg{width:16px;height:16px}
+
+/* Conteúdo */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  display:none;align-items:center;gap:12px;padding:12px 16px;
+  background:var(--pinho);color:#fff;position:sticky;top:0;z-index:30;
+}
+.topbar .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--mel),#c47f1e);display:grid;place-items:center}
+.topbar h1{font-size:16px;font-weight:800;letter-spacing:.05em}
+.topbar .topacts{margin-left:auto;display:flex;gap:4px}
+.topbar .topacts button{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;color:#cfe0d9;transition:.15s}
+.topbar .topacts button:hover{background:rgba(255,255,255,.1);color:#fff}
+.topbar .topacts button:active{background:rgba(255,255,255,.2)}
+.topbar .topacts button svg{width:19px;height:19px}
+.content{padding:28px 32px 40px;max-width:1120px;width:100%;margin:0 auto;flex:1}
+
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.page-head .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pinho-3);font-weight:700}
+.page-head h2{font-size:27px;font-weight:800;letter-spacing:-.01em;margin-top:3px}
+.page-head p{color:var(--tinta-2);font-size:13.5px;margin-top:4px}
+
+/* Botões */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:700;
+  background:var(--pinho);color:#fff;transition:.15s;box-shadow:var(--sombra);white-space:nowrap}
+.btn:hover{background:var(--pinho-2);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn svg{width:17px;height:17px}
+.btn.ghost{background:var(--carta);color:var(--tinta);box-shadow:inset 0 0 0 1px var(--linha)}
+.btn.ghost:hover{background:var(--papel-2)}
+.btn.mel{background:var(--mel);color:#3a2606}
+.btn.mel:hover{background:#c88720}
+.btn.sm{padding:7px 12px;font-size:12.5px;border-radius:8px}
+.btn.danger{background:var(--tijolo);color:#fff}
+.btn.danger:hover{background:var(--perigo)}
+.btn:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2.5px solid var(--mel);outline-offset:2px}
+
+/* Cartões métricos (dashboard) */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+.stat{background:var(--carta);border-radius:var(--raio);padding:16px 17px;box-shadow:var(--sombra);
+  border:1px solid var(--linha-2);position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--pinho)}
+.stat.warn::before{background:var(--mel)} .stat.bad::before{background:var(--tijolo)}
+.stat .n{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.stat .l{font-size:12px;color:var(--tinta-2);font-weight:600;margin-top:7px;display:flex;align-items:center;gap:6px}
+.stat .l svg{width:14px;height:14px}
+.stat.bad .n{color:var(--tijolo)} .stat.warn .n{color:var(--alerta)}
+
+/* Seções do dashboard */
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start}
+.panel{background:var(--carta);border-radius:var(--raio);border:1px solid var(--linha-2);box-shadow:var(--sombra);overflow:hidden}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 18px;border-bottom:1px solid var(--linha-2)}
+.panel-head h3{font-size:14.5px;font-weight:800;letter-spacing:.01em;display:flex;align-items:center;gap:9px}
+.panel-head h3 svg{width:17px;height:17px;color:var(--pinho-3)}
+.panel-head .count{font-family:var(--mono);font-size:12px;color:var(--tinta-2);font-weight:700}
+.panel-body{padding:8px 10px}
+.panel-body.pad{padding:16px 18px}
+
+/* Linha de item (vencimentos / compras) */
+.row{display:flex;align-items:center;gap:13px;padding:11px 12px;border-radius:10px;transition:.12s}
+.row:hover{background:var(--papel)}
+.row + .row{border-top:1px solid var(--linha-2)}
+.pill-date{font-family:var(--mono);font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:7px;white-space:nowrap;flex-shrink:0}
+.st-ok{background:var(--ok-bg);color:var(--ok)}
+.st-warn{background:var(--alerta-bg);color:var(--alerta)}
+.st-bad{background:var(--perigo-bg);color:var(--perigo)}
+.row .info{flex:1;min-width:0}
+.row .info .nm{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .info .sub{font-size:11.5px;color:var(--tinta-2);font-family:var(--mono);margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .qt{font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap}
+
+/* Barra de validade (assinatura) */
+.gauge{height:6px;border-radius:6px;background:var(--linha-2);overflow:hidden;margin-top:6px}
+.gauge > i{display:block;height:100%;border-radius:6px}
+
+/* Toolbar (busca/filtros) */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+.search{flex:1;min-width:200px;position:relative}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--tinta-2)}
+.search input{width:100%;padding:10px 12px 10px 37px;border-radius:10px;border:1px solid var(--linha);
+  background:var(--carta);color:var(--tinta)}
+select.filter{padding:10px 12px;border-radius:10px;border:1px solid var(--linha);background:var(--carta);color:var(--tinta);font-weight:600;font-size:13.5px}
+
+/* Cartões-etiqueta de produto (estoque) */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:15px}
+.pcard{background:var(--carta);border-radius:var(--raio);border:1px solid var(--linha-2);box-shadow:var(--sombra);
+  overflow:hidden;display:flex;flex-direction:column}
+.pcard .tag{display:flex;align-items:flex-start;gap:11px;padding:15px 16px 13px}
+.pcard .cat{width:42px;height:42px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
+  background:var(--papel-2);font-size:21px}
+.pcard .hd{flex:1;min-width:0}
+.pcard .hd .nm{font-weight:800;font-size:16px;letter-spacing:-.01em}
+.pcard .hd .meta{font-family:var(--mono);font-size:11px;color:var(--tinta-2);margin-top:2px;text-transform:uppercase;letter-spacing:.05em}
+.badge-st{font-size:10.5px;font-weight:800;padding:4px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;font-family:var(--mono)}
+.pcard .stockbar{padding:0 16px 4px}
+.pcard .stockbar .nums{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;font-weight:700;margin-bottom:5px}
+.pcard .stockbar .nums .min{color:var(--tinta-2);font-weight:600}
+.meter{height:8px;border-radius:8px;background:var(--linha-2);overflow:hidden;position:relative}
+.meter > i{display:block;height:100%;border-radius:8px;transition:width .3s}
+.meter .minmark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--tinta-2);opacity:.55}
+.pcard .lotes{border-top:1px dashed var(--linha);margin-top:10px;padding:10px 16px 6px;display:flex;flex-direction:column;gap:9px}
+.pcard .lotes .lt{display:flex;align-items:center;gap:10px}
+.pcard .lotes .lt .d{flex:1;min-width:0}
+.pcard .lotes .lt .d .lnm{font-size:12px;font-family:var(--mono);color:var(--tinta-2);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pcard .lotes .lt .lq{font-family:var(--mono);font-size:12.5px;font-weight:700}
+.mini{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--papel-2);color:var(--tinta-2);flex-shrink:0}
+.mini:hover{background:var(--pinho);color:#fff}
+.mini svg{width:14px;height:14px}
+.pcard .foot{margin-top:auto;display:flex;gap:6px;padding:11px 14px;border-top:1px solid var(--linha-2);background:var(--papel)}
+.pcard .foot button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;border-radius:8px;
+  font-size:12px;font-weight:700;color:var(--tinta-2);transition:.12s}
+.pcard .foot button:hover{background:var(--carta);color:var(--tinta);box-shadow:inset 0 0 0 1px var(--linha)}
+.pcard .foot button svg{width:15px;height:15px}
+.pcard .foot button.del:hover{color:var(--tijolo)}
+
+/* Listas simples (locais/produtos) */
+.list{display:flex;flex-direction:column;gap:11px}
+.litem{background:var(--carta);border:1px solid var(--linha-2);border-radius:var(--raio);box-shadow:var(--sombra);
+  padding:14px 16px;display:flex;align-items:center;gap:14px}
+.litem .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--papel-2);font-size:19px;flex-shrink:0}
+.litem .tx{flex:1;min-width:0}
+.litem .tx .t{font-weight:800;font-size:15px}
+.litem .tx .s{font-size:12.5px;color:var(--tinta-2);margin-top:1px}
+.litem .tx .s b{font-family:var(--mono);color:var(--pinho-3)}
+.litem .acts{display:flex;gap:5px}
+
+/* Vazio */
+.empty{text-align:center;padding:54px 20px;color:var(--tinta-2)}
+.empty .ill{width:66px;height:66px;margin:0 auto 16px;border-radius:18px;background:var(--papel-2);display:grid;place-items:center}
+.empty .ill svg{width:32px;height:32px;color:var(--pinho-3);opacity:.6}
+.empty h3{font-size:16px;color:var(--tinta);font-weight:800;margin-bottom:5px}
+.empty p{font-size:13.5px;max-width:340px;margin:0 auto 18px}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(21,30,26,.55);backdrop-filter:blur(3px);z-index:100;
+  display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:.2s}
+.overlay.on{opacity:1;pointer-events:auto}
+@media(min-width:640px){.overlay{align-items:center;padding:20px}}
+.modal{background:var(--papel);width:100%;max-width:520px;max-height:92vh;max-height:92dvh;border-radius:20px 20px 0 0;
+  box-shadow:var(--sombra-forte);display:flex;flex-direction:column;transform:translateY(20px);transition:.2s;overflow:hidden}
+.overlay.on .modal{transform:translateY(0)}
+@media(min-width:640px){.modal{border-radius:20px}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--linha)}
+.modal-head h3{font-size:18px;font-weight:800}
+.modal-head .x{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--tinta-2)}
+.modal-head .x:hover{background:var(--papel-2);color:var(--tinta)}
+.modal-body{padding:18px 20px;overflow-y:auto}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--linha);display:flex;gap:10px;background:var(--carta)}
+.modal-foot .btn{flex:1;justify-content:center}
+
+/* Formulário */
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px;color:var(--tinta)}
+.field label .opt{color:var(--tinta-2);font-weight:500;font-family:var(--mono);font-size:11px}
+.field input,.field select,.field textarea{
+  width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--linha);background:var(--carta);color:var(--tinta)}
+.field textarea{resize:vertical;min-height:64px;line-height:1.45}
+.field .hint{font-size:11.5px;color:var(--tinta-2);margin-top:5px}
+.field.err input,.field.err select{border-color:var(--tijolo)}
+.field .msg{font-size:11.5px;color:var(--tijolo);margin-top:5px;display:none;font-weight:600}
+.field.err .msg{display:block}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.inline-add{display:flex;gap:8px}
+.inline-add select{flex:1}
+.inline-add button{flex-shrink:0;padding:0 13px;border-radius:10px;background:var(--pinho);color:#fff;font-weight:700}
+.chiprow{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.chip{padding:6px 12px;border-radius:20px;font-size:12.5px;font-weight:700;background:var(--carta);
+  border:1px solid var(--linha);color:var(--tinta-2)}
+.chip.on{background:var(--pinho);color:#fff;border-color:var(--pinho)}
+
+/* Toast */
+.toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;
+  width:calc(100% - 32px);max-width:380px;align-items:center}
+.toast{background:var(--tinta);color:var(--papel);padding:12px 16px;border-radius:11px;font-size:13.5px;font-weight:600;
+  box-shadow:var(--sombra-forte);display:flex;align-items:center;gap:10px;width:100%;
+  animation:slideup .25s cubic-bezier(.2,.8,.2,1)}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.ok{background:var(--ok)} .toast.bad{background:var(--tijolo)} .toast.mel{background:var(--mel);color:#3a2606}
+@keyframes slideup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* FAB (mobile) */
+.fab{display:none;position:fixed;right:18px;bottom:82px;z-index:40;width:56px;height:56px;border-radius:18px;
+  background:var(--mel);color:#3a2606;box-shadow:var(--sombra-forte);place-items:center}
+.fab svg{width:26px;height:26px}
+
+/* Nav inferior (mobile) */
+.botnav{display:none;position:sticky;bottom:0;z-index:35;background:var(--carta);border-top:1px solid var(--linha);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));grid-template-columns:repeat(5,1fr)}
+.botnav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;border-radius:10px;
+  color:var(--tinta-2);font-size:10px;font-weight:700;position:relative}
+.botnav button svg{width:22px;height:22px}
+.botnav button.on{color:var(--pinho)}
+[data-tema="escuro"] .botnav button.on{color:var(--mel)}
+.botnav button .dot{position:absolute;top:5px;right:calc(50% - 16px);width:8px;height:8px;border-radius:8px;background:var(--tijolo)}
+
+/* Responsivo */
+@media(max-width:860px){
+  .side{display:none}
+  .topbar{display:flex}
+  .content{padding:18px 15px 24px}
+  .stats{grid-template-columns:1fr 1fr;gap:11px}
+  .grid-2{grid-template-columns:1fr}
+  .page-head h2{font-size:23px}
+  .page-head .btn{display:none} /* usa FAB no mobile */
+  .fab{display:grid}
+  .botnav{display:grid}
+  .cards{grid-template-columns:1fr}
+}
+@media(max-width:400px){.stat .n{font-size:26px}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar desktop -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#3a2606" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 8z"/><path d="M8 8V5a4 4 0 0 1 8 0v3"/></svg>
+      </div>
+      <div><h1>PROVISÃO</h1><span>despensa · offline</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <button id="instalarBtn" style="display:none;background:var(--mel);color:#3a2606;font-weight:800" onclick="App.instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><rect x="4" y="17" width="16" height="4" rx="1"/></svg>Instalar app</button>
+      <button onclick="App.exportar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Exportar backup</button>
+      <button onclick="document.getElementById('importFile').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 8l5-5 5 5"/><path d="M12 3v12"/></svg>Importar backup</button>
+      <button onclick="App.alternarTema()" id="temaBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Tema escuro</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <!-- Topbar mobile -->
+    <header class="topbar">
+      <div class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#3a2606" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 8z"/><path d="M8 8V5a4 4 0 0 1 8 0v3"/></svg></div>
+      <h1>PROVISÃO</h1>
+      <div class="topacts">
+        <button id="instalarBtnTop" style="display:none;background:var(--mel);color:#3a2606" title="Instalar app" onclick="App.instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><rect x="4" y="17" width="16" height="4" rx="1"/></svg></button>
+        <button onclick="App.exportar()" title="Exportar backup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
+        <button onclick="document.getElementById('importFile').click()" title="Importar backup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 8l5-5 5 5"/><path d="M12 3v12"/></svg></button>
+        <button onclick="App.alternarTema()" title="Alternar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      </div>
+    </header>
+    <main class="content" id="view"></main>
+  </div>
+</div>
+
+<!-- FAB + nav mobile -->
+<button class="fab" onclick="App.fabAcao()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
+<nav class="botnav" id="botnav"></nav>
+
+<!-- Overlay do modal -->
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<div class="toasts" id="toasts"></div>
+<input type="file" id="importFile" accept="application/json,.json" style="display:none">
+
+<script>
+"use strict";
+/* ============================================================
+   PROVISÃO — lógica
+   Dados salvos em localStorage (funcionam offline e persistem
+   após fechar o app). Backup manual via Exportar/Importar JSON.
+   ============================================================ */
+
+const CHAVE = "provisao_v1";
+const HOJE = () => { const d=new Date(); d.setHours(0,0,0,0); return d; };
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id"+Date.now()+Math.random().toString(36).slice(2,8));
+
+const CATS = {
+  "Alimentos":"🥫","Bebidas":"🧃","Congelados":"🧊","Hortifruti":"🥦",
+  "Limpeza":"🧽","Higiene":"🧴","Medicamentos":"💊","Pet":"🐾","Outros":"📦"
+};
+const UNIDADES = ["un","kg","g","L","ml","pct","cx","dz","rolo"];
+
+/* ---------- Estado / persistência ---------- */
+let db = { produtos:[], locais:[], lotes:[], settings:{tema:"claro"} };
+let armazenamentoOk = true;
+
+function carregar(){
+  try{
+    const raw = localStorage.getItem(CHAVE);
+    if(raw){ const p = JSON.parse(raw); db = Object.assign(db, p); }
+  }catch(e){ armazenamentoOk = false; console.warn("Sem localStorage:",e); }
+  if(!db.settings) db.settings = {tema:"claro"};
+}
+function salvar(){
+  try{ localStorage.setItem(CHAVE, JSON.stringify(db)); }
+  catch(e){ armazenamentoOk=false; toast("Não foi possível salvar neste navegador (modo privado?). Use Exportar backup.","bad"); }
+}
+
+/* ---------- Cálculos ---------- */
+function diasAte(iso){
+  if(!iso) return null;
+  const d = new Date(iso+"T00:00:00");
+  return Math.round((d - HOJE())/86400000);
+}
+function estoqueProduto(pid){
+  return db.lotes.filter(l=>l.produtoId===pid).reduce((s,l)=>s + Number(l.quantidade||0), 0);
+}
+function statusEstoque(prod){
+  const total = estoqueProduto(prod.id);
+  const min = Number(prod.estoqueMinimo||0);
+  if(total<=0) return {cls:"st-bad",bg:"perigo",txt:"Esgotado",total,min};
+  if(total<min) return {cls:"st-warn",bg:"alerta",txt:"Abaixo do mínimo",total,min};
+  return {cls:"st-ok",bg:"ok",txt:"Em estoque",total,min};
+}
+function statusValidade(iso){
+  const d = diasAte(iso);
+  if(d===null) return {cls:"st-ok",label:"Sem validade",dias:null,cor:"var(--pinho-3)"};
+  if(d<0) return {cls:"st-bad",label:`Vencido há ${Math.abs(d)}d`,dias:d,cor:"var(--tijolo)"};
+  if(d===0) return {cls:"st-bad",label:"Vence hoje",dias:0,cor:"var(--tijolo)"};
+  if(d<=7) return {cls:"st-bad",label:`Vence em ${d}d`,dias:d,cor:"var(--tijolo)"};
+  if(d<=30) return {cls:"st-warn",label:`Vence em ${d}d`,dias:d,cor:"var(--mel)"};
+  return {cls:"st-ok",label:`Vence em ${d}d`,dias:d,cor:"var(--ok)"};
+}
+function larguraValidade(dias){
+  if(dias===null) return 100;
+  if(dias<0) return 4;
+  return Math.max(4, Math.min(100, Math.round(dias/45*100)));
+}
+function fmtData(iso){
+  if(!iso) return "—";
+  const [a,m,d]=iso.split("-"); return `${d}/${m}/${a}`;
+}
+function nomeProd(id){ const p=db.produtos.find(x=>x.id===id); return p?p.nome:"—"; }
+function nomeLocal(id){ const l=db.locais.find(x=>x.id===id); return l?l.nome:"—"; }
+function catIcon(c){ return CATS[c]||"📦"; }
+
+/* Métricas do dashboard */
+function metricas(){
+  let venc=0, vence7=0, abaixo=0;
+  db.lotes.forEach(l=>{ const d=diasAte(l.validade); if(d!==null){ if(d<0) venc++; else if(d<=7) vence7++; } });
+  db.produtos.forEach(p=>{ const s=statusEstoque(p); if(s.total<s.min) abaixo++; });
+  return {produtos:db.produtos.length, venc, vence7, abaixo};
+}
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+const App = {
+  aba:"painel",
+  filtro:{busca:"",local:"todos",cat:"todos",status:"todos"},
+
+  ir(aba){ this.aba=aba; this.render(); window.scrollTo(0,0); },
+
+  render(){
+    this.renderNav();
+    const v = document.getElementById("view");
+    ({painel:()=>this.painel(v), estoque:()=>this.estoque(v),
+      produtos:()=>this.produtos(v), locais:()=>this.locais(v),
+      compras:()=>this.compras(v)}[this.aba] || (()=>this.painel(v)))();
+  },
+
+  renderNav(){
+    const m = metricas();
+    const alert = m.venc + m.abaixo;
+    const items = [
+      ["painel","Painel", ic.painel, 0],
+      ["estoque","Estoque", ic.caixa, alert],
+      ["compras","Compras", ic.carrinho, 0],
+      ["produtos","Produtos", ic.tag, 0],
+      ["locais","Locais", ic.pin, 0],
+    ];
+    document.getElementById("nav").innerHTML = items.map(([k,l,i,b])=>
+      `<button class="${this.aba===k?'on':''}" onclick="App.ir('${k}')">${i}<span>${l}</span>${b?`<span class="badge">${b}</span>`:''}</button>`).join("");
+    document.getElementById("botnav").innerHTML = items.map(([k,l,i,b])=>
+      `<button class="${this.aba===k?'on':''}" onclick="App.ir('${k}')">${i}<span>${l}</span>${b?`<span class="dot"></span>`:''}</button>`).join("");
+  },
+
+  /* ---------- PAINEL ---------- */
+  painel(v){
+    const m = metricas();
+    const proximos = db.lotes
+      .filter(l=>l.validade)
+      .map(l=>({...l, dias:diasAte(l.validade)}))
+      .sort((a,b)=>a.dias-b.dias)
+      .slice(0,7);
+    const compra = db.produtos.filter(p=>statusEstoque(p).total < Number(p.estoqueMinimo||0));
+
+    v.innerHTML = `
+      <div class="page-head">
+        <div><div class="eyebrow">Visão geral</div><h2>Sua despensa hoje</h2>
+          <p>Atualizado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</p></div>
+        <button class="btn" onclick="App.abrirLote()">${ic.plus}Registrar compra</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="n">${m.produtos}</div><div class="l">${ic.tag}Produtos cadastrados</div></div>
+        <div class="stat ${m.abaixo?'warn':''}"><div class="n">${m.abaixo}</div><div class="l">${ic.alerta}Abaixo do mínimo</div></div>
+        <div class="stat ${m.vence7?'warn':''}"><div class="n">${m.vence7}</div><div class="l">${ic.relogio}Vencem em 7 dias</div></div>
+        <div class="stat ${m.venc?'bad':''}"><div class="n">${m.venc}</div><div class="l">${ic.alerta}Já vencidos</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>${ic.relogio}Radar de vencimento</h3><span class="count">${proximos.length} lote(s)</span></div>
+          <div class="panel-body">
+            ${proximos.length ? proximos.map(l=>{
+              const sv=statusValidade(l.validade);
+              return `<div class="row" onclick="App.abrirLote('${l.id}')" style="cursor:pointer">
+                <span class="pill-date ${sv.cls}">${fmtData(l.validade)}</span>
+                <div class="info"><div class="nm">${esc(nomeProd(l.produtoId))}</div>
+                  <div class="sub">${esc(nomeLocal(l.localId))} · ${sv.label}</div>
+                  <div class="gauge"><i style="width:${larguraValidade(sv.dias)}%;background:${sv.cor}"></i></div></div>
+                <span class="qt">${fmtQt(l.quantidade)} ${esc(unidadeProd(l.produtoId))}</span>
+              </div>`;
+            }).join("") : vazioMini("Nenhum item com validade ainda.","Registre uma compra para começar o radar.")}
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head" style="flex-wrap:wrap"><h3>${ic.carrinho}Lista de compras</h3>
+            ${compra.length ? `<div style="display:flex;align-items:center;gap:7px">
+              <span class="count">${compra.length} item(s)</span>
+              <button class="btn sm ghost" onclick="App.copiarLista()">${ic.copia}Copiar</button>
+              <button class="btn sm ghost" onclick="App.compartilharLista()">${ic.compart}Compartilhar</button>
+            </div>` : `<span class="count">${compra.length} item(s)</span>`}</div>
+          <div class="panel-body">
+            ${compra.length ? compra.map(p=>{
+              const s=statusEstoque(p); const falta = Math.max(0, s.min - s.total);
+              return `<div class="row" onclick="App.ir('estoque')" style="cursor:pointer">
+                <span class="cat" style="width:34px;height:34px;font-size:17px;border-radius:9px;background:var(--papel-2);display:grid;place-items:center;flex-shrink:0">${catIcon(p.categoria)}</span>
+                <div class="info"><div class="nm">${esc(p.nome)}</div>
+                  <div class="sub">Tem ${fmtQt(s.total)} · mínimo ${fmtQt(s.min)} ${esc(p.unidade||'un')}</div></div>
+                <span class="qt" style="color:var(--tijolo)">falta ${fmtQt(falta)}</span>
+              </div>`;
+            }).join("") : vazioMini("Tudo em dia! 🎉","Nenhum produto abaixo do estoque mínimo.")}
+          </div>
+        </div>
+      </div>`;
+  },
+
+  /* ---------- ESTOQUE (cartões-etiqueta por produto) ---------- */
+  estoque(v){
+    const f = this.filtro;
+    let prods = db.produtos.slice();
+    if(f.busca) prods = prods.filter(p=>p.nome.toLowerCase().includes(f.busca.toLowerCase()));
+    if(f.cat!=="todos") prods = prods.filter(p=>p.categoria===f.cat);
+    if(f.status!=="todos") prods = prods.filter(p=>{const s=statusEstoque(p);
+      return (f.status==="baixo" && s.total<s.min) || (f.status==="ok" && s.total>=s.min && s.total>0) || (f.status==="zero" && s.total<=0);});
+    if(f.local!=="todos") prods = prods.filter(p=> db.lotes.some(l=>l.produtoId===p.id && l.localId===f.local));
+
+    prods.sort((a,b)=>{ const sa=statusEstoque(a), sb=statusEstoque(b);
+      const rank=s=> s.total<=0?0 : s.total<s.min?1 : 2;
+      return rank(sa)-rank(sb) || a.nome.localeCompare(b.nome); });
+
+    v.innerHTML = `
+      <div class="page-head">
+        <div><div class="eyebrow">Inventário</div><h2>Estoque</h2>
+          <p>${db.produtos.length} produtos · ${db.lotes.length} lotes registrados</p></div>
+        <button class="btn" onclick="App.abrirLote()">${ic.plus}Registrar compra</button>
+      </div>
+      ${db.produtos.length ? `
+      <div class="toolbar">
+        <div class="search">${ic.busca}<input placeholder="Buscar produto…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div>
+        <select class="filter" onchange="App.setFiltro('status',this.value)">
+          ${opt("todos","Todos os status",f.status)}${opt("baixo","Abaixo do mínimo",f.status)}${opt("ok","Em estoque",f.status)}${opt("zero","Esgotado",f.status)}
+        </select>
+        <select class="filter" onchange="App.setFiltro('cat',this.value)">
+          ${opt("todos","Todas categorias",f.cat)}${Object.keys(CATS).map(c=>opt(c,c,f.cat)).join("")}
+        </select>
+        <select class="filter" onchange="App.setFiltro('local',this.value)">
+          ${opt("todos","Todos os locais",f.local)}${db.locais.map(l=>opt(l.id,l.nome,f.local)).join("")}
+        </select>
+      </div>` : ""}
+      <div class="cards">
+        ${prods.length ? prods.map(p=>this.cardProduto(p)).join("") :
+          (db.produtos.length ? vazio("Nada encontrado","Ajuste a busca ou os filtros.",ic.busca) :
+          vazio("Sua despensa está vazia","Cadastre produtos e registre a primeira compra para começar.",ic.caixa,
+            `<button class="btn" onclick="App.abrirProduto()">${ic.plus}Cadastrar produto</button>`))}
+      </div>`;
+  },
+
+  cardProduto(p){
+    const s = statusEstoque(p);
+    const lotes = db.lotes.filter(l=>l.produtoId===p.id)
+      .sort((a,b)=>(diasAte(a.validade)??9e9)-(diasAte(b.validade)??9e9));
+    const pct = s.min>0 ? Math.min(100, s.total/s.min*100) : (s.total>0?100:0);
+    const minPos = s.min>0 && s.total>s.min ? Math.min(96, s.min/s.total*100) : null;
+    const barCor = s.total<=0?"var(--tijolo)": s.total<s.min?"var(--mel)":"var(--ok)";
+    return `<div class="pcard">
+      <div class="tag">
+        <div class="cat">${catIcon(p.categoria)}</div>
+        <div class="hd"><div class="nm">${esc(p.nome)}</div>
+          <div class="meta">${esc(p.categoria||'Outros')} · ${esc(p.unidade||'un')}</div></div>
+        <span class="badge-st ${s.cls}">${s.txt}</span>
+      </div>
+      <div class="stockbar">
+        <div class="nums"><span>${fmtQt(s.total)} <small style="font-weight:600;color:var(--tinta-2)">${esc(p.unidade||'un')} em estoque</small></span>
+          <span class="min">mín ${fmtQt(s.min)}</span></div>
+        <div class="meter"><i style="width:${pct}%;background:${barCor}"></i>${minPos?`<span class="minmark" style="left:${minPos}%"></span>`:""}</div>
+      </div>
+      <div class="lotes">
+        ${lotes.length ? lotes.map(l=>{const sv=statusValidade(l.validade);
+          return `<div class="lt">
+            <span class="pill-date ${sv.cls}">${l.validade?fmtData(l.validade):"sem val."}</span>
+            <div class="d"><div class="lnm">${sv.label} · ${esc(nomeLocal(l.localId))}</div></div>
+            <span class="lq">${fmtQt(l.quantidade)}</span>
+            <button class="mini" title="Editar lote" onclick="App.abrirLote('${l.id}')">${ic.lapis}</button>
+            <button class="mini" title="Dar baixa (consumir)" onclick="App.consumir('${l.id}')">${ic.menos}</button>
+          </div>`;}).join("")
+          : `<div class="lnm" style="font-family:var(--mono);color:var(--tinta-2);font-size:12px;padding:2px 0">Sem lotes — registre uma compra.</div>`}
+      </div>
+      <div class="foot">
+        <button onclick="App.abrirLote(null,'${p.id}')">${ic.plus}Compra</button>
+        <button onclick="App.abrirProduto('${p.id}')">${ic.lapis}Editar</button>
+        <button onclick="App.duplicarProduto('${p.id}')">${ic.copia}Duplicar</button>
+        <button class="del" onclick="App.excluirProduto('${p.id}')">${ic.lixo}Excluir</button>
+      </div>
+    </div>`;
+  },
+
+  /* ---------- COMPRAS (histórico de lotes) ---------- */
+  compras(v){
+    const f=this.filtro;
+    let lotes = db.lotes.slice().sort((a,b)=>(b.dataCompra||"").localeCompare(a.dataCompra||"") || (b.criadoEm||0)-(a.criadoEm||0));
+    if(f.busca) lotes = lotes.filter(l=>nomeProd(l.produtoId).toLowerCase().includes(f.busca.toLowerCase()));
+    if(f.local!=="todos") lotes = lotes.filter(l=>l.localId===f.local);
+
+    v.innerHTML = `
+      <div class="page-head">
+        <div><div class="eyebrow">Histórico</div><h2>Compras registradas</h2>
+          <p>Cada compra vira um lote e soma ao estoque do produto</p></div>
+        <button class="btn" onclick="App.abrirLote()">${ic.plus}Registrar compra</button>
+      </div>
+      ${db.lotes.length ? `
+      <div class="toolbar">
+        <div class="search">${ic.busca}<input placeholder="Buscar por produto…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div>
+        <select class="filter" onchange="App.setFiltro('local',this.value)">
+          ${opt("todos","Todos os locais",f.local)}${db.locais.map(l=>opt(l.id,l.nome,f.local)).join("")}
+        </select>
+      </div>
+      <div class="list">
+        ${lotes.length ? lotes.map(l=>{const sv=statusValidade(l.validade); const p=db.produtos.find(x=>x.id===l.produtoId);
+          return `<div class="litem">
+            <div class="ic">${catIcon(p?.categoria)}</div>
+            <div class="tx"><div class="t">${esc(nomeProd(l.produtoId))}</div>
+              <div class="s"><b>${fmtQt(l.quantidade)} ${esc(unidadeProd(l.produtoId))}</b> · ${esc(nomeLocal(l.localId))} · comprado ${fmtData(l.dataCompra)}</div>
+              <span class="pill-date ${sv.cls}" style="display:inline-block;margin-top:6px">Val: ${l.validade?fmtData(l.validade):"—"} · ${sv.label}</span></div>
+            <div class="acts">
+              <button class="mini" title="Editar" onclick="App.abrirLote('${l.id}')">${ic.lapis}</button>
+              <button class="mini" title="Duplicar" onclick="App.duplicarLote('${l.id}')">${ic.copia}</button>
+              <button class="mini" title="Excluir" onclick="App.excluirLote('${l.id}')">${ic.lixo}</button>
+            </div>
+          </div>`;}).join("") : vazio("Nada encontrado","Ajuste a busca.",ic.busca)}
+      </div>` : vazio("Nenhuma compra registrada","Registre uma compra para alimentar seu estoque.",ic.carrinho,
+        `<button class="btn" onclick="App.abrirLote()">${ic.plus}Registrar compra</button>`)}`;
+  },
+
+  /* ---------- PRODUTOS (catálogo + mínimo) ---------- */
+  produtos(v){
+    const f=this.filtro;
+    let prods = db.produtos.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
+    if(f.busca) prods=prods.filter(p=>p.nome.toLowerCase().includes(f.busca.toLowerCase()));
+    v.innerHTML = `
+      <div class="page-head">
+        <div><div class="eyebrow">Catálogo</div><h2>Produtos & estoque mínimo</h2>
+          <p>Defina aqui o mínimo de cada item. O alerta soma todos os lotes.</p></div>
+        <button class="btn" onclick="App.abrirProduto()">${ic.plus}Novo produto</button>
+      </div>
+      ${db.produtos.length?`<div class="toolbar"><div class="search">${ic.busca}<input placeholder="Buscar produto…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div></div>`:""}
+      <div class="list">
+        ${prods.length ? prods.map(p=>{const s=statusEstoque(p);
+          return `<div class="litem">
+            <div class="ic">${catIcon(p.categoria)}</div>
+            <div class="tx"><div class="t">${esc(p.nome)}</div>
+              <div class="s">${esc(p.categoria||'Outros')} · em estoque <b>${fmtQt(s.total)}</b> · mínimo <b>${fmtQt(s.min)}</b> ${esc(p.unidade||'un')}
+                <span class="badge-st ${s.cls}" style="margin-left:4px">${s.txt}</span></div></div>
+            <div class="acts">
+              <button class="mini" title="Registrar compra" onclick="App.abrirLote(null,'${p.id}')">${ic.plus}</button>
+              <button class="mini" title="Editar" onclick="App.abrirProduto('${p.id}')">${ic.lapis}</button>
+              <button class="mini" title="Duplicar" onclick="App.duplicarProduto('${p.id}')">${ic.copia}</button>
+              <button class="mini" title="Excluir" onclick="App.excluirProduto('${p.id}')">${ic.lixo}</button>
+            </div>
+          </div>`;}).join("") :
+          vazio("Nenhum produto","Cadastre os itens que você costuma ter em casa e defina o mínimo de cada um.",ic.tag,
+            `<button class="btn" onclick="App.abrirProduto()">${ic.plus}Cadastrar produto</button>`)}
+      </div>`;
+  },
+
+  /* ---------- LOCAIS ---------- */
+  locais(v){
+    v.innerHTML = `
+      <div class="page-head">
+        <div><div class="eyebrow">Organização</div><h2>Locais de armazenamento</h2>
+          <p>Onde cada coisa fica guardada: armário, geladeira, freezer…</p></div>
+        <button class="btn" onclick="App.abrirLocal()">${ic.plus}Novo local</button>
+      </div>
+      <div class="list">
+        ${db.locais.length ? db.locais.map(l=>{const n=db.lotes.filter(x=>x.localId===l.id).length;
+          return `<div class="litem">
+            <div class="ic">${esc(l.icone||'📍')}</div>
+            <div class="tx"><div class="t">${esc(l.nome)}</div>
+              <div class="s">${l.descricao?esc(l.descricao)+' · ':''}<b>${n}</b> lote(s) guardado(s) aqui</div></div>
+            <div class="acts">
+              <button class="mini" title="Editar" onclick="App.abrirLocal('${l.id}')">${ic.lapis}</button>
+              <button class="mini" title="Duplicar" onclick="App.duplicarLocal('${l.id}')">${ic.copia}</button>
+              <button class="mini" title="Excluir" onclick="App.excluirLocal('${l.id}')">${ic.lixo}</button>
+            </div>
+          </div>`;}).join("") :
+          vazio("Nenhum local ainda","Crie locais como “Armário da cozinha”, “Geladeira”, “Freezer” ou “Despensa”.",ic.pin,
+            `<button class="btn" onclick="App.abrirLocal()">${ic.plus}Criar local</button>`)}
+      </div>`;
+  },
+
+  /* ---------- Filtros ---------- */
+  setFiltro(k,val){ this.filtro[k]=val;
+    if(k==="busca"){ // não re-renderiza tudo pra não perder foco
+      clearTimeout(this._t); this._t=setTimeout(()=>this.render(),200);
+    } else this.render();
+  },
+
+  fabAcao(){ if(this.aba==="produtos") this.abrirProduto();
+    else if(this.aba==="locais") this.abrirLocal(); else this.abrirLote(); },
+
+  /* ============================================================
+     MODAIS — CRUD
+     ============================================================ */
+
+  /* ---- LOTE / COMPRA ---- */
+  abrirLote(id=null, produtoPre=null){
+    if(db.produtos.length===0){
+      abrirModal("Cadastre um produto antes", `<p style="color:var(--tinta-2);font-size:14px">Para registrar uma compra você precisa ter ao menos um produto no catálogo (com nome e estoque mínimo).</p>`,
+        `<button class="btn ghost" onclick="fecharModal()">Agora não</button><button class="btn" onclick="fecharModal();App.abrirProduto()">Criar produto</button>`);
+      return;
+    }
+    const l = id ? db.lotes.find(x=>x.id===id) : null;
+    const pid = l?.produtoId || produtoPre || db.produtos[0].id;
+    const body = `
+      <div class="field">
+        <label>Produto</label>
+        <div class="inline-add">
+          <select id="f_prod">${db.produtos.map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${esc(p.nome)}</option>`).join("")}</select>
+          <button type="button" onclick="App.abrirProduto(null,true)" title="Novo produto">${ic.plus}</button>
+        </div>
+        <div class="hint">A quantidade abaixo é somada a tudo que já existe deste produto.</div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Quantidade comprada</label>
+          <input id="f_qt" type="number" inputmode="decimal" min="0" step="any" value="${l?l.quantidade:''}" placeholder="0"></div>
+        <div class="field"><label>Local <span class="opt">onde guardou</span></label>
+          <div class="inline-add">
+            <select id="f_local">${db.locais.length?db.locais.map(x=>`<option value="${x.id}" ${l&&l.localId===x.id?'selected':''}>${esc(x.nome)}</option>`).join(""):`<option value="">— sem locais —</option>`}</select>
+            <button type="button" onclick="App.abrirLocal(null,true)" title="Novo local">${ic.plus}</button>
+          </div></div>
+      </div>
+      <div class="row2">
+        <div class="field" id="fld_val"><label>Validade</label>
+          <input id="f_val" type="date" value="${l?.validade||''}">
+          <div class="msg">Informe a data de validade.</div></div>
+        <div class="field"><label>Data da compra <span class="opt">opcional</span></label>
+          <input id="f_compra" type="date" value="${l?.dataCompra||''}"></div>
+      </div>`;
+    abrirModal(id?"Editar lote":"Registrar compra", body,
+      `<button class="btn ghost" onclick="fecharModal()">Cancelar</button>
+       <button class="btn" onclick="App.salvarLote('${id||''}')">${ic.check}${id?'Salvar':'Registrar'}</button>`);
+  },
+  salvarLote(id){
+    const qt = parseFloat(document.getElementById("f_qt").value);
+    const prod = document.getElementById("f_prod").value;
+    const validade = document.getElementById("f_val").value;
+    if(!prod){ toast("Selecione um produto.","bad"); return; }
+    if(isNaN(qt) || qt<0){ toast("Informe uma quantidade válida.","bad"); return; }
+    if(!validade){ document.getElementById("fld_val").classList.add("err"); toast("A data de validade é obrigatória.","bad"); return; }
+    const dados = {
+      produtoId: prod,
+      quantidade: qt,
+      localId: document.getElementById("f_local").value || null,
+      validade: validade,
+      dataCompra: document.getElementById("f_compra").value || null,
+    };
+    if(id){ Object.assign(db.lotes.find(x=>x.id===id), dados); toast("Lote atualizado.","ok"); }
+    else { db.lotes.push({id:uid(), criadoEm:Date.now(), ...dados}); toast("Compra registrada e somada ao estoque.","ok"); }
+    salvar(); fecharModal(); this.render();
+  },
+  duplicarLote(id){ const l=db.lotes.find(x=>x.id===id); if(!l)return;
+    db.lotes.push({...l, id:uid(), criadoEm:Date.now()}); salvar(); toast("Lote duplicado.","mel"); this.render(); },
+  excluirLote(id){ confirmar("Excluir este lote?","A quantidade dele sai do estoque. Não dá para desfazer.",()=>{
+    db.lotes = db.lotes.filter(x=>x.id!==id); salvar(); toast("Lote excluído.","ok"); this.render(); }); },
+  consumir(id){ const l=db.lotes.find(x=>x.id===id); if(!l)return;
+    const body=`<p style="color:var(--tinta-2);font-size:13.5px;margin-bottom:14px">Quanto foi consumido de <b style="color:var(--tinta)">${esc(nomeProd(l.produtoId))}</b>? (atual: ${fmtQt(l.quantidade)} ${esc(unidadeProd(l.produtoId))})</p>
+      <div class="field"><label>Quantidade consumida</label><input id="f_cons" type="number" inputmode="decimal" min="0" step="any" value="1"></div>`;
+    abrirModal("Dar baixa", body, `<button class="btn ghost" onclick="fecharModal()">Cancelar</button><button class="btn mel" onclick="App.aplicarConsumo('${id}')">${ic.menos}Dar baixa</button>`);
+  },
+  aplicarConsumo(id){ const l=db.lotes.find(x=>x.id===id); const c=parseFloat(document.getElementById("f_cons").value);
+    if(isNaN(c)||c<=0){toast("Valor inválido.","bad");return;}
+    l.quantidade = Math.max(0, Number(l.quantidade)-c);
+    if(l.quantidade===0){ db.lotes=db.lotes.filter(x=>x.id!==id); toast("Lote esgotado e removido.","ok"); }
+    else toast("Baixa aplicada.","ok");
+    salvar(); fecharModal(); this.render();
+  },
+
+  /* ---- PRODUTO ---- */
+  abrirProduto(id=null, voltarLote=false){
+    const p = id ? db.produtos.find(x=>x.id===id) : null;
+    const cat = p?.categoria || "Alimentos";
+    const body = `
+      <div class="field" id="fld_nome"><label>Nome do produto</label>
+        <input id="p_nome" value="${p?esc(p.nome):''}" placeholder="Ex.: Arroz integral 1kg" autocomplete="off">
+        <div class="msg">Informe um nome.</div></div>
+      <div class="field"><label>Categoria</label>
+        <div class="chiprow" id="p_cats">${Object.keys(CATS).map(c=>`<button type="button" class="chip ${c===cat?'on':''}" data-cat="${c}" onclick="App.pickCat(this)">${CATS[c]} ${c}</button>`).join("")}</div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Estoque mínimo</label>
+          <input id="p_min" type="number" inputmode="decimal" min="0" step="any" value="${p?p.estoqueMinimo:''}" placeholder="Ex.: 2">
+          <div class="hint">Abaixo disso, entra na lista de compras.</div></div>
+        <div class="field"><label>Unidade</label>
+          <select id="p_un">${UNIDADES.map(u=>`<option ${p&&p.unidade===u?'selected':(!p&&u==='un'?'selected':'')}>${u}</option>`).join("")}</select></div>
+      </div>`;
+    abrirModal(id?"Editar produto":"Novo produto", body,
+      `<button class="btn ghost" onclick="fecharModal()">Cancelar</button>
+       <button class="btn" onclick="App.salvarProduto('${id||''}',${voltarLote})">${ic.check}Salvar</button>`);
+    this._catSel = cat;
+  },
+  pickCat(el){ [...el.parentNode.children].forEach(c=>c.classList.remove("on")); el.classList.add("on"); this._catSel=el.dataset.cat; },
+  salvarProduto(id, voltarLote){
+    const nome=document.getElementById("p_nome").value.trim();
+    if(!nome){ document.getElementById("fld_nome").classList.add("err"); return; }
+    const dados={ nome, categoria:this._catSel||"Outros",
+      estoqueMinimo: parseFloat(document.getElementById("p_min").value)||0,
+      unidade: document.getElementById("p_un").value };
+    let novoId=id;
+    if(id){ Object.assign(db.produtos.find(x=>x.id===id),dados); toast("Produto atualizado.","ok"); }
+    else { novoId=uid(); db.produtos.push({id:novoId, criadoEm:Date.now(), ...dados}); toast("Produto cadastrado.","ok"); }
+    salvar(); fecharModal();
+    if(voltarLote) this.abrirLote(null, novoId); else this.render();
+  },
+  duplicarProduto(id){ const p=db.produtos.find(x=>x.id===id); if(!p)return;
+    db.produtos.push({...p, id:uid(), nome:p.nome+" (cópia)", criadoEm:Date.now()});
+    salvar(); toast("Produto duplicado (sem os lotes).","mel"); this.render(); },
+  excluirProduto(id){ const n=db.lotes.filter(l=>l.produtoId===id).length;
+    confirmar("Excluir produto?", n?`Isso também remove ${n} lote(s) e todo o estoque deste item.`:"Este produto não tem lotes.",()=>{
+      db.produtos=db.produtos.filter(x=>x.id!==id); db.lotes=db.lotes.filter(l=>l.produtoId!==id);
+      salvar(); toast("Produto excluído.","ok"); this.render(); }); },
+
+  /* ---- LOCAL ---- */
+  abrirLocal(id=null, voltarLote=false){
+    const l = id ? db.locais.find(x=>x.id===id) : null;
+    const icones=["📍","🗄️","🧊","❄️","🚪","🧺","🛒","🏠","🧴","💊","🎒"];
+    const ic0 = l?.icone||"📍";
+    const body=`
+      <div class="field" id="fld_lnome"><label>Nome do local</label>
+        <input id="l_nome" value="${l?esc(l.nome):''}" placeholder="Ex.: Armário da cozinha" autocomplete="off">
+        <div class="msg">Informe um nome.</div></div>
+      <div class="field"><label>Ícone</label>
+        <div class="chiprow" id="l_icones">${icones.map(i=>`<button type="button" class="chip ${i===ic0?'on':''}" data-ic="${i}" onclick="App.pickIc(this)" style="font-size:16px">${i}</button>`).join("")}</div></div>
+      <div class="field"><label>Descrição <span class="opt">opcional</span></label>
+        <input id="l_desc" value="${l?esc(l.descricao||''):''}" placeholder="Ex.: prateleira de cima"></div>`;
+    abrirModal(id?"Editar local":"Novo local", body,
+      `<button class="btn ghost" onclick="fecharModal()">Cancelar</button>
+       <button class="btn" onclick="App.salvarLocal('${id||''}',${voltarLote})">${ic.check}Salvar</button>`);
+    this._icSel=ic0;
+  },
+  pickIc(el){ [...el.parentNode.children].forEach(c=>c.classList.remove("on")); el.classList.add("on"); this._icSel=el.dataset.ic; },
+  salvarLocal(id, voltarLote){
+    const nome=document.getElementById("l_nome").value.trim();
+    if(!nome){ document.getElementById("fld_lnome").classList.add("err"); return; }
+    const dados={ nome, icone:this._icSel||"📍", descricao:document.getElementById("l_desc").value.trim() };
+    let novoId=id;
+    if(id){ Object.assign(db.locais.find(x=>x.id===id),dados); toast("Local atualizado.","ok"); }
+    else { novoId=uid(); db.locais.push({id:novoId, criadoEm:Date.now(), ...dados}); toast("Local criado.","ok"); }
+    salvar(); fecharModal();
+    if(voltarLote) this.abrirLote(); else this.render();
+  },
+  duplicarLocal(id){ const l=db.locais.find(x=>x.id===id); if(!l)return;
+    db.locais.push({...l,id:uid(),nome:l.nome+" (cópia)",criadoEm:Date.now()}); salvar(); toast("Local duplicado.","mel"); this.render(); },
+  excluirLocal(id){ const n=db.lotes.filter(l=>l.localId===id).length;
+    confirmar("Excluir local?", n?`${n} lote(s) ficarão sem local (os itens continuam no estoque).`:"Nenhum lote usa este local.",()=>{
+      db.locais=db.locais.filter(x=>x.id!==id); db.lotes.forEach(l=>{ if(l.localId===id) l.localId=null; });
+      salvar(); toast("Local excluído.","ok"); this.render(); }); },
+
+  /* ---- Tema / backup ---- */
+  alternarTema(){ db.settings.tema = db.settings.tema==="escuro"?"claro":"escuro";
+    aplicarTema(); salvar(); },
+  exportar(){
+    const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download=`provisao-backup-${new Date().toISOString().slice(0,10)}.json`; a.click();
+    URL.revokeObjectURL(a.href); toast("Backup exportado.","ok");
+  },
+  importar(file){
+    const r=new FileReader();
+    r.onload=()=>{ try{ const d=JSON.parse(r.result);
+      if(!d.produtos||!d.locais||!d.lotes) throw 0;
+      confirmar("Importar backup?","Isso substitui todos os dados atuais deste app.",()=>{
+        db=Object.assign({settings:{tema:db.settings.tema}}, d); if(!db.settings)db.settings={tema:"claro"};
+        salvar(); aplicarTema(); this.render(); toast("Backup importado com sucesso.","ok"); });
+    }catch(e){ toast("Arquivo inválido.","bad"); } };
+    r.readAsText(file);
+  },
+
+  /* ---- Lista de compras: copiar / compartilhar ---- */
+  listaComprasTexto(){
+    const compra = db.produtos.filter(p=>statusEstoque(p).total < Number(p.estoqueMinimo||0));
+    if(!compra.length) return "";
+    const linhas = compra.map(p=>{ const s=statusEstoque(p); const falta=Math.max(0,s.min-s.total);
+      return `• ${p.nome} — comprar ${fmtQt(falta)} ${p.unidade||'un'} (tem ${fmtQt(s.total)}, mín ${fmtQt(s.min)})`; });
+    return `🛒 Lista de compras — Provisão (${new Date().toLocaleDateString('pt-BR')})\n\n${linhas.join("\n")}`;
+  },
+  async copiarLista(){
+    const txt=this.listaComprasTexto();
+    if(!txt){ toast("Nada na lista de compras.","bad"); return; }
+    const ok=await copiarTexto(txt);
+    toast(ok?"Lista copiada.":"Não foi possível copiar aqui.", ok?"ok":"bad");
+  },
+  async compartilharLista(){
+    const txt=this.listaComprasTexto();
+    if(!txt){ toast("Nada na lista de compras.","bad"); return; }
+    if(navigator.share){
+      try{ await navigator.share({title:"Lista de compras", text:txt}); }
+      catch(e){ /* usuário cancelou */ }
+    } else {
+      const ok=await copiarTexto(txt);
+      toast(ok?"Compartilhar indisponível aqui — lista copiada.":"Não foi possível compartilhar.", ok?"mel":"bad");
+    }
+  },
+};
+
+/* ============================================================
+   Helpers de UI
+   ============================================================ */
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtQt(n){ n=Number(n||0); return Number.isInteger(n)?n:n.toLocaleString('pt-BR',{maximumFractionDigits:3}); }
+function unidadeProd(id){ const p=db.produtos.find(x=>x.id===id); return p?.unidade||"un"; }
+function opt(v,l,sel){ return `<option value="${v}" ${v===sel?'selected':''}>${esc(l)}</option>`; }
+function vazio(t,p,icone,btn=""){ return `<div class="empty" style="grid-column:1/-1"><div class="ill">${icone}</div><h3>${esc(t)}</h3><p>${esc(p)}</p>${btn}</div>`; }
+function vazioMini(t,p){ return `<div class="empty" style="padding:30px 16px"><h3 style="font-size:14px">${esc(t)}</h3><p style="font-size:12.5px">${esc(p)}</p></div>`; }
+async function copiarTexto(txt){
+  try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(txt); return true; } }catch(e){}
+  try{ const ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.focus(); ta.select(); const ok=document.execCommand("copy"); ta.remove(); return ok;
+  }catch(e){ return false; }
+}
+
+function abrirModal(titulo, body, foot){
+  document.getElementById("modal").innerHTML=`
+    <div class="modal-head"><h3>${titulo}</h3><button class="x" onclick="fecharModal()">${ic.x}</button></div>
+    <div class="modal-body">${body}</div><div class="modal-foot">${foot}</div>`;
+  document.getElementById("overlay").classList.add("on");
+  document.body.style.overflow="hidden";
+  setTimeout(()=>{ const f=document.querySelector(".modal-body input,.modal-body select"); if(f&&f.type!=="date")f.focus(); },80);
+}
+function fecharModal(){ document.getElementById("overlay").classList.remove("on"); document.body.style.overflow=""; }
+function confirmar(titulo, texto, onSim){
+  abrirModal(titulo, `<p style="color:var(--tinta-2);font-size:14px;line-height:1.55">${esc(texto)}</p>`,
+    `<button class="btn ghost" onclick="fecharModal()">Cancelar</button><button class="btn danger" onclick="fecharModal();(${'window.__conf'})()">Confirmar</button>`);
+  window.__conf = onSim;
+}
+let toastTimer;
+function toast(msg, tipo=""){
+  const el=document.createElement("div"); el.className="toast "+tipo;
+  el.innerHTML=`${tipo==='bad'?ic.alerta:tipo==='mel'?ic.copia:ic.check}<span>${esc(msg)}</span>`;
+  document.getElementById("toasts").appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transform="translateY(8px)"; setTimeout(()=>el.remove(),200); }, 2600);
+}
+function aplicarTema(){
+  const dark = db.settings.tema==="escuro";
+  document.documentElement.setAttribute("data-tema", dark?"escuro":"claro");
+  document.querySelector('meta[name=theme-color]').setAttribute("content", dark?"#15181a":"#153b30");
+  const b=document.getElementById("temaBtn");
+  if(b && b.childNodes[1]) b.childNodes[1].nodeValue = dark?"Tema claro":"Tema escuro";
+}
+
+/* Ícones SVG (inline, offline) */
+const S = (p,extra="")=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${p}</svg>`;
+const ic = {
+  painel:S('<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>'),
+  caixa:S('<path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/>'),
+  carrinho:S('<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 2-1.6L23 7H5.1"/>'),
+  tag:S('<path d="M20.6 13.4L13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/>'),
+  pin:S('<path d="M12 21s-7-5.7-7-11a7 7 0 0 1 14 0c0 5.3-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>'),
+  plus:S('<path d="M12 5v14M5 12h14"/>'),
+  menos:S('<path d="M5 12h14"/>'),
+  lapis:S('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>'),
+  copia:S('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+  lixo:S('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),
+  relogio:S('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  alerta:S('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>'),
+  busca:S('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>'),
+  check:S('<path d="M20 6L9 17l-5-5"/>'),
+  x:S('<path d="M18 6L6 18M6 6l12 12"/>'),
+  compart:S('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>'),
+};
+
+/* ============================================================
+   Bootstrap
+   ============================================================ */
+function seedInicial(){
+  // Dados de exemplo só na primeira abertura (deixa o app "vivo")
+  const cozinha={id:uid(),nome:"Armário da cozinha",icone:"🗄️",descricao:"",criadoEm:Date.now()};
+  const geladeira={id:uid(),nome:"Geladeira",icone:"🧊",descricao:"",criadoEm:Date.now()};
+  const banheiro={id:uid(),nome:"Banheiro",icone:"🚪",descricao:"armário do espelho",criadoEm:Date.now()};
+  db.locais=[cozinha,geladeira,banheiro];
+  const arroz={id:uid(),nome:"Arroz 5kg",categoria:"Alimentos",estoqueMinimo:2,unidade:"pct",criadoEm:Date.now()};
+  const leite={id:uid(),nome:"Leite",categoria:"Bebidas",estoqueMinimo:6,unidade:"L",criadoEm:Date.now()};
+  const dipirona={id:uid(),nome:"Dipirona",categoria:"Medicamentos",estoqueMinimo:1,unidade:"cx",criadoEm:Date.now()};
+  db.produtos=[arroz,leite,dipirona];
+  const d=(n)=>{const x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);};
+  db.lotes=[
+    {id:uid(),produtoId:arroz.id,localId:cozinha.id,quantidade:1,validade:d(120),dataCompra:d(-10),criadoEm:Date.now()},
+    {id:uid(),produtoId:leite.id,localId:geladeira.id,quantidade:3,validade:d(4),dataCompra:d(-2),criadoEm:Date.now()},
+    {id:uid(),produtoId:leite.id,localId:cozinha.id,quantidade:2,validade:d(45),dataCompra:d(-1),criadoEm:Date.now()},
+    {id:uid(),produtoId:dipirona.id,localId:banheiro.id,quantidade:1,validade:d(-6),dataCompra:d(-200),criadoEm:Date.now()},
+  ];
+  db.settings={tema:"claro",seed:true};
+  salvar();
+}
+
+carregar();
+if(!db.settings.seed && db.produtos.length===0 && db.locais.length===0) seedInicial();
+aplicarTema();
+App.render();
+
+document.getElementById("importFile").addEventListener("change",e=>{ if(e.target.files[0]) App.importar(e.target.files[0]); e.target.value=""; });
+document.getElementById("overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") fecharModal(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") fecharModal(); });
+if(!armazenamentoOk) toast("Este navegador bloqueou o armazenamento. Use Exportar/Importar para não perder dados.","bad");
+
+/* ============================================================
+   PWA — instalação e service worker (funciona hospedado em HTTPS)
+   ============================================================ */
+let promptInstalar = null;
+function mostrarBotaoInstalar(mostrar){
+  const b1=document.getElementById("instalarBtn"), b2=document.getElementById("instalarBtnTop");
+  if(b1) b1.style.display = mostrar?"flex":"none";
+  if(b2) b2.style.display = mostrar?"grid":"none";
+}
+window.addEventListener("beforeinstallprompt",(e)=>{
+  e.preventDefault(); promptInstalar=e; mostrarBotaoInstalar(true);
+});
+App.instalar = async function(){
+  if(!promptInstalar){
+    toast("Para instalar: menu do navegador (⋮) → “Instalar app” ou “Adicionar à tela inicial”.","mel");
+    return;
+  }
+  promptInstalar.prompt();
+  const r = await promptInstalar.userChoice;
+  if(r.outcome==="accepted"){ toast("App instalado! Abra pelo ícone na tela inicial.","ok"); }
+  promptInstalar=null; mostrarBotaoInstalar(false);
+};
+window.addEventListener("appinstalled",()=>{ mostrarBotaoInstalar(false); toast("Provisão instalado no seu celular.","ok"); });
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("sw.js").catch(err=>console.warn("SW não registrado:",err));
+  });
+}
+</script>
+</body>
+</html>

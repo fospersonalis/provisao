@@ -1,5 +1,5 @@
 /* Provisão — Service Worker (offline-first) */
-const CACHE = "provisao-v2";
+const CACHE = "provisao-v3";
 const ASSETS = [
   "./",
   "./index.html",

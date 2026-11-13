@@ -382,7 +382,7 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id"+Date.now()+Mat
 
 const CATS = {
   "Alimentos":"🥫","Bebidas":"🧃","Congelados":"🧊","Hortifruti":"🥦",
-  "Limpeza":"🧽","Higiene":"🧴","Medicamentos":"💊","Pet":"🐾","Outros":"📦"
+  "Limpeza":"🧽","Higiene":"🧴","Medicamentos":"💊","Enlatados":"🫙","Outros":"📦"
 };
 const UNIDADES = ["un","kg","g","L","ml","pct","cx","dz","rolo"];
 
@@ -463,7 +463,16 @@ const App = {
     ({painel:()=>this.painel(v), estoque:()=>this.estoque(v),
       produtos:()=>this.produtos(v), locais:()=>this.locais(v),
       compras:()=>this.compras(v)}[this.aba] || (()=>this.painel(v)))();
+    // Mantém o foco no campo de busca após re-renderizar (senão não dá pra digitar)
+    if(this._focoBusca){
+      const bi=document.getElementById("buscaInput");
+      if(bi){ bi.focus(); const n=bi.value.length; try{ bi.setSelectionRange(n,n); }catch(e){} }
+      this._focoBusca=false;
+    }
   },
+
+  // Só considera a busca a partir de 3 letras (evita filtrar com 1–2 caracteres)
+  termoBusca(){ const q=(this.filtro.busca||"").trim(); return q.length>=3 ? q : ""; },
 
   renderNav(){
     const m = metricas();
@@ -489,7 +498,8 @@ const App = {
       .map(l=>({...l, dias:diasAte(l.validade)}))
       .sort((a,b)=>a.dias-b.dias)
       .slice(0,7);
-    const compra = db.produtos.filter(p=>statusEstoque(p).total < Number(p.estoqueMinimo||0));
+    const compra = db.produtos.filter(p=>statusEstoque(p).total < Number(p.estoqueMinimo||0))
+      .sort((a,b)=>a.nome.localeCompare(b.nome,'pt',{sensitivity:'base'}));
 
     v.innerHTML = `
       <div class="page-head">
@@ -545,7 +555,8 @@ const App = {
   estoque(v){
     const f = this.filtro;
     let prods = db.produtos.slice();
-    if(f.busca) prods = prods.filter(p=>p.nome.toLowerCase().includes(f.busca.toLowerCase()));
+    const q = this.termoBusca();
+    if(q) prods = prods.filter(p=>p.nome.toLowerCase().includes(q.toLowerCase()));
     if(f.cat!=="todos") prods = prods.filter(p=>p.categoria===f.cat);
     if(f.status!=="todos") prods = prods.filter(p=>{const s=statusEstoque(p);
       return (f.status==="baixo" && s.total<s.min) || (f.status==="ok" && s.total>=s.min && s.total>0) || (f.status==="zero" && s.total<=0);});
@@ -563,15 +574,15 @@ const App = {
       </div>
       ${db.produtos.length ? `
       <div class="toolbar">
-        <div class="search">${ic.busca}<input placeholder="Buscar produto…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div>
+        <div class="search">${ic.busca}<input id="buscaInput" placeholder="Buscar produto (3+ letras)…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div>
         <select class="filter" onchange="App.setFiltro('status',this.value)">
           ${opt("todos","Todos os status",f.status)}${opt("baixo","Abaixo do mínimo",f.status)}${opt("ok","Em estoque",f.status)}${opt("zero","Esgotado",f.status)}
         </select>
         <select class="filter" onchange="App.setFiltro('cat',this.value)">
-          ${opt("todos","Todas categorias",f.cat)}${Object.keys(CATS).map(c=>opt(c,c,f.cat)).join("")}
+          ${opt("todos","Todas categorias",f.cat)}${Object.keys(CATS).slice().sort((a,b)=>a.localeCompare(b,'pt')).map(c=>opt(c,c,f.cat)).join("")}
         </select>
         <select class="filter" onchange="App.setFiltro('local',this.value)">
-          ${opt("todos","Todos os locais",f.local)}${db.locais.map(l=>opt(l.id,l.nome,f.local)).join("")}
+          ${opt("todos","Todos os locais",f.local)}${locaisOrdenados().map(l=>opt(l.id,l.nome,f.local)).join("")}
         </select>
       </div>` : ""}
       <div class="cards">
@@ -625,7 +636,8 @@ const App = {
   compras(v){
     const f=this.filtro;
     let lotes = db.lotes.slice().sort((a,b)=>(b.dataCompra||"").localeCompare(a.dataCompra||"") || (b.criadoEm||0)-(a.criadoEm||0));
-    if(f.busca) lotes = lotes.filter(l=>nomeProd(l.produtoId).toLowerCase().includes(f.busca.toLowerCase()));
+    const q = this.termoBusca();
+    if(q) lotes = lotes.filter(l=>nomeProd(l.produtoId).toLowerCase().includes(q.toLowerCase()));
     if(f.local!=="todos") lotes = lotes.filter(l=>l.localId===f.local);
 
     v.innerHTML = `
@@ -636,9 +648,9 @@ const App = {
       </div>
       ${db.lotes.length ? `
       <div class="toolbar">
-        <div class="search">${ic.busca}<input placeholder="Buscar por produto…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div>
+        <div class="search">${ic.busca}<input id="buscaInput" placeholder="Buscar por produto (3+ letras)…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div>
         <select class="filter" onchange="App.setFiltro('local',this.value)">
-          ${opt("todos","Todos os locais",f.local)}${db.locais.map(l=>opt(l.id,l.nome,f.local)).join("")}
+          ${opt("todos","Todos os locais",f.local)}${locaisOrdenados().map(l=>opt(l.id,l.nome,f.local)).join("")}
         </select>
       </div>
       <div class="list">
@@ -662,14 +674,15 @@ const App = {
   produtos(v){
     const f=this.filtro;
     let prods = db.produtos.slice().sort((a,b)=>a.nome.localeCompare(b.nome));
-    if(f.busca) prods=prods.filter(p=>p.nome.toLowerCase().includes(f.busca.toLowerCase()));
+    const q = this.termoBusca();
+    if(q) prods=prods.filter(p=>p.nome.toLowerCase().includes(q.toLowerCase()));
     v.innerHTML = `
       <div class="page-head">
         <div><div class="eyebrow">Catálogo</div><h2>Produtos & estoque mínimo</h2>
           <p>Defina aqui o mínimo de cada item. O alerta soma todos os lotes.</p></div>
         <button class="btn" onclick="App.abrirProduto()">${ic.plus}Novo produto</button>
       </div>
-      ${db.produtos.length?`<div class="toolbar"><div class="search">${ic.busca}<input placeholder="Buscar produto…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div></div>`:""}
+      ${db.produtos.length?`<div class="toolbar"><div class="search">${ic.busca}<input id="buscaInput" placeholder="Buscar produto (3+ letras)…" value="${esc(f.busca)}" oninput="App.setFiltro('busca',this.value)"></div></div>`:""}
       <div class="list">
         ${prods.length ? prods.map(p=>{const s=statusEstoque(p);
           return `<div class="litem">
@@ -698,7 +711,7 @@ const App = {
         <button class="btn" onclick="App.abrirLocal()">${ic.plus}Novo local</button>
       </div>
       <div class="list">
-        ${db.locais.length ? db.locais.map(l=>{const n=db.lotes.filter(x=>x.localId===l.id).length;
+        ${db.locais.length ? locaisOrdenados().map(l=>{const n=db.lotes.filter(x=>x.localId===l.id).length;
           return `<div class="litem">
             <div class="ic">${esc(l.icone||'📍')}</div>
             <div class="tx"><div class="t">${esc(l.nome)}</div>
@@ -716,8 +729,8 @@ const App = {
 
   /* ---------- Filtros ---------- */
   setFiltro(k,val){ this.filtro[k]=val;
-    if(k==="busca"){ // não re-renderiza tudo pra não perder foco
-      clearTimeout(this._t); this._t=setTimeout(()=>this.render(),200);
+    if(k==="busca"){ this._focoBusca=true; // espera um tempinho e mantém o foco
+      clearTimeout(this._t); this._t=setTimeout(()=>this.render(),450);
     } else this.render();
   },
 
@@ -741,7 +754,7 @@ const App = {
       <div class="field">
         <label>Produto</label>
         <div class="inline-add">
-          <select id="f_prod">${db.produtos.map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${esc(p.nome)}</option>`).join("")}</select>
+          <select id="f_prod">${produtosOrdenados().map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${esc(p.nome)}</option>`).join("")}</select>
           <button type="button" onclick="App.abrirProduto(null,true)" title="Novo produto">${ic.plus}</button>
         </div>
         <div class="hint">A quantidade abaixo é somada a tudo que já existe deste produto.</div>
@@ -751,7 +764,7 @@ const App = {
           <input id="f_qt" type="number" inputmode="decimal" min="0" step="any" value="${l?l.quantidade:''}" placeholder="0"></div>
         <div class="field"><label>Local <span class="opt">onde guardou</span></label>
           <div class="inline-add">
-            <select id="f_local">${db.locais.length?db.locais.map(x=>`<option value="${x.id}" ${l&&l.localId===x.id?'selected':''}>${esc(x.nome)}</option>`).join(""):`<option value="">— sem locais —</option>`}</select>
+            <select id="f_local">${db.locais.length?locaisOrdenados().map(x=>`<option value="${x.id}" ${l&&l.localId===x.id?'selected':''}>${esc(x.nome)}</option>`).join(""):`<option value="">— sem locais —</option>`}</select>
             <button type="button" onclick="App.abrirLocal(null,true)" title="Novo local">${ic.plus}</button>
           </div></div>
       </div>
@@ -903,7 +916,8 @@ const App = {
 
   /* ---- Lista de compras: copiar / compartilhar ---- */
   listaComprasTexto(){
-    const compra = db.produtos.filter(p=>statusEstoque(p).total < Number(p.estoqueMinimo||0));
+    const compra = db.produtos.filter(p=>statusEstoque(p).total < Number(p.estoqueMinimo||0))
+      .sort((a,b)=>a.nome.localeCompare(b.nome,'pt',{sensitivity:'base'}));
     if(!compra.length) return "";
     const linhas = compra.map(p=>{ const s=statusEstoque(p); const falta=Math.max(0,s.min-s.total);
       return `• ${p.nome} — comprar ${fmtQt(falta)} ${p.unidade||'un'} (tem ${fmtQt(s.total)}, mín ${fmtQt(s.min)})`; });
@@ -934,6 +948,9 @@ const App = {
 function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtQt(n){ n=Number(n||0); return Number.isInteger(n)?n:n.toLocaleString('pt-BR',{maximumFractionDigits:3}); }
 function unidadeProd(id){ const p=db.produtos.find(x=>x.id===id); return p?.unidade||"un"; }
+function ordAlfa(a,b){ return a.nome.localeCompare(b.nome,'pt',{sensitivity:'base'}); }
+function produtosOrdenados(){ return db.produtos.slice().sort(ordAlfa); }
+function locaisOrdenados(){ return db.locais.slice().sort(ordAlfa); }
 function opt(v,l,sel){ return `<option value="${v}" ${v===sel?'selected':''}>${esc(l)}</option>`; }
 function vazio(t,p,icone,btn=""){ return `<div class="empty" style="grid-column:1/-1"><div class="ill">${icone}</div><h3>${esc(t)}</h3><p>${esc(p)}</p>${btn}</div>`; }
 function vazioMini(t,p){ return `<div class="empty" style="padding:30px 16px"><h3 style="font-size:14px">${esc(t)}</h3><p style="font-size:12.5px">${esc(p)}</p></div>`; }
